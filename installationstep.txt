@@ -1,0 +1,175 @@
+================================================================================
+SECURE CODING ASSISTANT (LANGGRAPH + GEMINI) - INSTALLATION & SETUP GUIDE
+================================================================================
+
+This document provides step-by-step instructions in English to install, configure,
+and run the autonomous vulnerability remediation agent.
+
+--------------------------------------------------------------------------------
+1. SYSTEM PREREQUISITES
+--------------------------------------------------------------------------------
+Before starting, ensure your system has:
+- Python 3.10, 3.11, or 3.12 installed.
+  Verify by running:
+    python --version
+
+- Git (optional, if cloning from a repository)
+- Active internet connection (required for Google Gemini API calls)
+- A free Google Gemini API Key from Google AI Studio:
+  https://aistudio.google.com/app/apikey
+
+
+--------------------------------------------------------------------------------
+2. STEP 1: OPEN PROJECT FOLDER
+--------------------------------------------------------------------------------
+Open your terminal (PowerShell, Command Prompt, or Bash) and navigate to the project directory:
+
+  cd "C:\Users\Vineet Kmar Singh\Desktop\internships"
+
+Verify the project files are present:
+  dir       (on Windows PowerShell)
+  ls -la    (on Linux / macOS)
+
+Key files required:
+- main.py
+- graph.py
+- schemas.py
+- report.py
+- requirements.txt
+- test_sample.py
+
+
+--------------------------------------------------------------------------------
+3. STEP 2: CREATE AND ACTIVATE A VIRTUAL ENVIRONMENT
+--------------------------------------------------------------------------------
+Using a dedicated virtual environment prevents dependency version conflicts.
+
+On Windows (PowerShell):
+  python -m venv venv
+  .\venv\Scripts\Activate.ps1
+
+  * Note: If PowerShell shows a script execution policy error, run:
+    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+On Windows (Command Prompt - cmd.exe):
+  python -m venv venv
+  venv\Scripts\activate.bat
+
+On Linux / macOS:
+  python3 -m venv venv
+  source venv/bin/activate
+
+Once activated, your terminal prompt will display: (venv)
+
+
+--------------------------------------------------------------------------------
+4. STEP 3: INSTALL REQUIRED DEPENDENCIES
+--------------------------------------------------------------------------------
+Install all required Python libraries using pip:
+
+  pip install -r requirements.txt
+
+Key packages installed:
+- langgraph (>=0.2.0)        : Cyclic agent workflow graph orchestration
+- langchain (>=0.2.0)        : LLM framework integration
+- langchain-google-genai     : Google Gemini 2.5 Flash model interface
+- pydantic (>=2.0.0)         : Structured data validation and schemas
+- rich (>=13.0.0)            : Terminal formatted tables, panels, and logs
+- reportlab (>=4.0.0)        : Vector PDF audit report generation
+- python-dotenv (>=1.0.0)    : Environment variable loading (.env)
+
+
+--------------------------------------------------------------------------------
+5. STEP 4: CONFIGURE GOOGLE GEMINI API KEY (.env)
+--------------------------------------------------------------------------------
+1. Generate your free API key at:
+   https://aistudio.google.com/app/apikey
+
+2. In the root directory of the project, create a file named:
+   .env
+
+   (You can also copy the template file .env.example)
+
+3. Add your API key inside the .env file as follows:
+   GOOGLE_API_KEY=AIzaSyYourActualGeminiApiKeyHere123456789
+
+4. Save and close the file.
+
+
+--------------------------------------------------------------------------------
+6. STEP 5: RUN A TEST AUDIT SCAN
+--------------------------------------------------------------------------------
+Test the agent against the included vulnerable Python sample file:
+
+  python main.py --file test_sample.py
+
+Execution Pipeline:
+1. [analyze_vulnerabilities] : Identifies CWE-89 (SQL Injection) at lines 7-8.
+2. [generate_patch]          : Generates parameterized SQL queries using placeholders.
+3. [verify_patch]            : Compiles code with Python AST parser. Retries up to 3x on syntax errors.
+4. [generate_report]         : Produces formatted Markdown (.md) and PDF audit reports.
+
+
+--------------------------------------------------------------------------------
+7. STEP 6: ADVANCED USAGE & MULTI-FILE PARALLEL SCANS
+--------------------------------------------------------------------------------
+A. Scan multiple files concurrently using parallel worker processes:
+   python main.py --file app.py utils.py database.py --workers 4
+
+B. Specify a custom output folder for generated patches and reports:
+   python main.py --file test_sample.py --out my_audit_results
+
+C. Scanning other programming languages:
+   The agent supports:
+   - Python (.py)
+   - JavaScript (.js)
+   - TypeScript (.ts)
+   - PHP (.php)
+   - Java (.java)
+   - C / C++ (.c, .cpp)
+   - Ruby (.rb)
+   - Go (.go)
+
+   Example:
+   python main.py --file src/auth.js
+
+
+--------------------------------------------------------------------------------
+8. UNDERSTANDING THE OUTPUT FILES
+--------------------------------------------------------------------------------
+After each run, the agent saves three artifacts inside the output/ folder:
+
+1. patched_<filename>.<ext>
+   The complete, secure replacement source code with vulnerabilities resolved.
+
+2. report_<filename>.md
+   A comprehensive Markdown vulnerability breakdown detailing CWE ID,
+   severity level, affected lines, technical impact, and applied remediation.
+
+3. report_<filename>.pdf
+   A publication-grade PDF report with color-coded severity badges,
+   code snippets, and executive summary tables.
+
+
+--------------------------------------------------------------------------------
+9. TROUBLESHOOTING & COMMON ISSUES
+--------------------------------------------------------------------------------
+- Error: "ModuleNotFoundError: No module named 'langgraph'"
+  Fix: Make sure your virtual environment is active:
+       .\venv\Scripts\Activate.ps1
+       pip install -r requirements.txt
+
+- Error: "ValueError: Did not find google_api_key"
+  Fix: Ensure the .env file is in the root project folder and contains:
+       GOOGLE_API_KEY=your_actual_key
+
+- Error: "Execution of scripts is disabled on this system" (PowerShell)
+  Fix: Run this command in PowerShell:
+       Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+- Error: "HTTP 429 ResourceExhausted" (Rate limit exceeded)
+  Fix: Gemini free tier has rate limits. Wait 15-30 seconds before re-running.
+
+================================================================================
+END OF INSTRUCTIONS
+================================================================================
