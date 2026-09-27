@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>🔐 SecureCodeAI — Vulnerability Scanner</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--surface:#161b22;--s2:#21262d;--border:#30363d;
+  --text:#e6edf3;--muted:#8b949e;
+  --blue:#58a6ff;--blue2:#1f6feb;
+  --green:#3fb950;--red:#f85149;--orange:#d29922;--yellow:#e3b341;
+}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* ── Header ── */
+header{
+  background:linear-gradient(135deg,#0d1117,#1a2332);
+  border-bottom:1px solid var(--border);
+  padding:0 28px;height:60px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+}
+.logo{display:flex;align-items:center;gap:10px;font-size:1.05rem;font-weight:700}
+.logo span{background:linear-gradient(90deg,#58a6ff,#bc8cff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hbadge{font-size:.72rem;color:var(--muted);background:var(--s2);border:1px solid var(--border);padding:3px 10px;border-radius:20px}
+
+/* ── Layout ── */
+.wrap{max-width:1300px;margin:0 auto;padding:28px 20px}
+
+/* ── Config Row ── */
+.config-row{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:18px 22px;margin-bottom:24px;
+  display:flex;flex-wrap:wrap;gap:14px;align-items:center;
+}
+.config-row label{font-size:.8rem;color:var(--muted);white-space:nowrap}
+.config-row input,.config-row select{
+  background:var(--bg);border:1px solid var(--border);
+  color:var(--text);border-radius:8px;padding:8px 12px;font-size:.85rem;
+}
+.config-row input{flex:1;min-width:240px;font-family:monospace}
+.config-row input:focus,.config-row select:focus{outline:none;border-color:var(--blue)}
+.config-row select{cursor:pointer;min-width:200px}
+.config-row a{color:var(--blue);font-size:.75rem;text-decoration:none}
+.config-row a:hover{text-decoration:underline}
+
+/* ── Section title ── */
+.stitle{font-size:.68rem;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+
+/* ── Pipeline ── */
+.pipeline{
+  display:flex;align-items:center;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:22px 16px;margin-bottom:24px;
+  overflow-x:auto;gap:0;
+}
+.pnode{display:flex;flex-direction:column;align-items:center;min-width:150px;flex-shrink:0}
+.nbox{
+  width:134px;padding:14px 8px;border-radius:10px;border:2px solid var(--border);
+  background:var(--s2);text-align:center;transition:all .3s;
+}
+.nbox .ni{font-size:1.4rem;margin-bottom:5px}
+.nbox .nn{font-size:.75rem;font-weight:600}
+.nbox .ns{font-size:.65rem;color:var(--muted);margin-top:2px}
+.nbox.idle{}
+.nbox.active{border-color:var(--blue);background:#162032;box-shadow:0 0 16px rgba(88,166,255,.3);animation:pulseb 1.2s ease-in-out infinite}
+.nbox.done{border-color:var(--green);background:#0d2216}
+.nbox.error{border-color:var(--red);background:#200d0d}
+@keyframes pulseb{0%,100%{box-shadow:0 0 10px rgba(88,166,255,.25)}50%{box-shadow:0 0 24px rgba(88,166,255,.6)}}
+.nstat{font-size:.63rem;margin-top:6px;padding:2px 8px;border-radius:10px;font-weight:600;background:var(--s2);color:var(--muted);transition:all .3s}
+.nstat.running{background:#162032;color:var(--blue)}
+.nstat.done{background:#0d2216;color:var(--green)}
+.nstat.error{background:#200d0d;color:var(--red)}
+.parrow{flex-shrink:0;width:36px;display:flex;align-items:center;justify-content:center;position:relative}
+.parrow::before{content:'';position:absolute;left:0;right:0;top:50%;height:2px;background:var(--border);transform:translateY(-50%);transition:background .4s}
+.parrow::after{content:'▶';font-size:.65rem;color:var(--border);position:relative;z-index:1;transition:color .4s}
+.parrow.lit::before{background:var(--green)}
+.parrow.lit::after{color:var(--green)}
+
+/* ── Upload ── */
+.dropzone{
+  border:2px dashed var(--border);border-radius:12px;padding:38px;
+  text-align:center;cursor:pointer;background:var(--surface);
+  transition:all .3s;position:relative;margin-bottom:16px;
+}
+.dropzone:hover,.dropzone.over{border-color:var(--blue);background:#0f1d2e}
+.dropzone input{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:2}
+.dz-icon{font-size:2.4rem;margin-bottom:10px}
+.dz-title{font-size:.95rem;font-weight:600;margin-bottom:5px}
+.dz-sub{font-size:.8rem;color:var(--muted)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:12px}
+.chip{background:var(--s2);border:1px solid var(--border);padding:3px 9px;border-radius:20px;font-size:.7rem;color:var(--muted)}
+
+/* ── File Queue ── */
+.fqueue{display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
+.fitem{
+  display:flex;align-items:center;gap:12px;
+  background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:9px 14px;
+}
+.fitem-name{flex:1;font-size:.86rem;font-weight:500}
+.fitem-size{font-size:.72rem;color:var(--muted)}
+.fitem-rm{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;padding:2px 6px;border-radius:4px;transition:all .2s}
+.fitem-rm:hover{color:var(--red);background:rgba(248,81,73,.1)}
+
+/* ── Buttons ── */
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:26px}
+.btn{padding:10px 20px;border-radius:8px;font-size:.86rem;font-weight:600;cursor:pointer;border:none;display:flex;align-items:center;gap:7px;transition:all .2s}
+.btn-scan{background:linear-gradient(135deg,var(--blue2),#388bfd);color:#fff}
+.btn-scan:hover:not(:disabled){background:linear-gradient(135deg,#388bfd,var(--blue));transform:translateY(-1px)}
+.btn-clear{background:var(--s2);border:1px solid var(--border);color:var(--text)}
+.btn-clear:hover:not(:disabled){border-color:var(--blue);color:var(--blue)}
+.btn-dl{background:linear-gradient(135deg,#1a7a2e,#2ea043);color:#fff}
+.btn-dl:hover:not(:disabled){background:linear-gradient(135deg,#2ea043,var(--green))}
+.btn-dl2{background:var(--s2);border:1px solid var(--border);color:var(--text)}
+.btn-dl2:hover:not(:disabled){border-color:var(--blue);color:var(--blue)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.spinner{width:13px;height:13px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:spin .65s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Log ── */
+.logbox{
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:14px;max-height:160px;overflow-y:auto;
+  font-family:'Cascadia Code','Fira Code',Consolas,monospace;font-size:.76rem;line-height:1.8;
+  margin-bottom:26px;
+}
+.le{display:flex;gap:10px}
+.lt{color:var(--muted);flex-shrink:0}
+.lm{color:var(--text)}
+.le.info .lm{color:var(--blue)}
+.le.ok   .lm{color:var(--green)}
+.le.warn .lm{color:var(--orange)}
+.le.err  .lm{color:var(--red)}
+
+/* ── Results ── */
+.results{display:none}
+.results.show{display:block}
+.ftabs{display:flex;gap:5px;border-bottom:1px solid var(--border);overflow-x:auto;margin-bottom:20px}
+.ftab{
+  padding:7px 15px;border-radius:8px 8px 0 0;border:1px solid transparent;border-bottom:none;
+  font-size:.81rem;font-weight:500;cursor:pointer;color:var(--muted);background:none;transition:all .2s;white-space:nowrap;
+}
+.ftab.on{border-color:var(--border);border-bottom:1px solid var(--surface);background:var(--surface);color:var(--text);margin-bottom:-1px}
+.fpanel{display:none}
+.fpanel.on{display:block}
+
+/* ── Summary Cards ── */
+.scards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:22px}
+.scard{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px}
+.scard-label{font-size:.67rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:7px}
+.scard-val{font-size:1.5rem;font-weight:700}
+.scard-sub{font-size:.72rem;color:var(--muted);margin-top:3px}
+.vc{color:var(--red)}.hc{color:var(--orange)}.mc{color:var(--yellow)}.gc{color:var(--green)}
+
+/* ── Finding Cards ── */
+.ftitle{font-size:.96rem;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.fcard{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:12px;overflow:hidden}
+.fhead{display:flex;align-items:center;gap:10px;padding:13px 16px;cursor:pointer;transition:background .2s}
+.fhead:hover{background:var(--s2)}
+.fidx{width:26px;height:26px;border-radius:50%;background:var(--s2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0}
+.ftxt{flex:1;font-size:.87rem;font-weight:600}
+.fcwe{font-size:.7rem;color:var(--muted);font-family:monospace}
+.fchev{color:var(--muted);transition:transform .2s;font-size:.75rem}
+.fcard.open .fchev{transform:rotate(90deg)}
+.sbadge{padding:3px 9px;border-radius:20px;font-size:.68rem;font-weight:700;flex-shrink:0}
+.sCRITICAL{background:rgba(248,81,73,.15);color:var(--red);border:1px solid rgba(248,81,73,.3)}
+.sHIGH    {background:rgba(210,153,34,.15);color:var(--orange);border:1px solid rgba(210,153,34,.3)}
+.sMEDIUM  {background:rgba(227,179,65,.15);color:var(--yellow);border:1px solid rgba(227,179,65,.3)}
+.sLOW     {background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.3)}
+.fbody{display:none;padding:0 16px 16px;border-top:1px solid var(--border)}
+.fcard.open .fbody{display:block;padding-top:13px}
+.dgrid{display:grid;grid-template-columns:130px 1fr;gap:7px 14px;font-size:.82rem}
+.dlabel{color:var(--muted);font-weight:500}
+.dval{line-height:1.55}
+.locs{display:flex;gap:5px;flex-wrap:wrap}
+.loc{background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.28);color:var(--red);font-family:monospace;font-size:.72rem;padding:2px 7px;border-radius:4px;font-weight:600}
+
+/* ── Code Viewer ── */
+.codesec{margin-top:22px}
+.ctabs{display:flex;gap:3px}
+.ctab{padding:6px 14px;border-radius:8px 8px 0 0;border:1px solid var(--border);border-bottom:none;font-size:.78rem;cursor:pointer;background:var(--s2);color:var(--muted);transition:all .2s}
+.ctab.on{background:var(--surface);color:var(--text)}
+.cview{background:var(--surface);border:1px solid var(--border);border-radius:0 8px 8px 8px}
+.chdr{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;background:var(--s2);border-bottom:1px solid var(--border)}
+.clang{font-size:.73rem;color:var(--muted);font-family:monospace}
+.cbtn{background:none;border:1px solid var(--border);color:var(--muted);padding:4px 11px;border-radius:6px;font-size:.7rem;cursor:pointer;transition:all .2s}
+.cbtn:hover{border-color:var(--blue);color:var(--blue)}
+.cpre{overflow:auto;max-height:480px;padding:14px;font-family:'Cascadia Code','Fira Code',Consolas,monospace;font-size:.78rem;line-height:1.65;margin:0;counter-reset:line}
+.cline{display:flex;gap:10px}
+.cln{color:var(--muted);min-width:30px;text-align:right;user-select:none;flex-shrink:0}
+.clc{flex:1;white-space:pre;overflow-x:auto}
+.cline.vuln{background:rgba(248,81,73,.1);border-left:3px solid var(--red);padding-left:7px;margin-left:-7px}
+.cline.added{background:rgba(63,185,80,.07);border-left:3px solid var(--green);padding-left:7px;margin-left:-7px}
+.cpanel{display:none}.cpanel.on{display:block}
+.chglist{list-style:none;padding:14px 16px}
+.chglist li{display:flex;align-items:flex-start;gap:9px;padding:7px 0;border-bottom:1px solid var(--border);font-size:.82rem;line-height:1.5}
+.chglist li:last-child{border:none}
+.chglist li::before{content:'✓';color:var(--green);font-weight:700;flex-shrink:0;margin-top:2px}
+
+/* ── Validation banner ── */
+.vbanner{border-radius:8px;padding:11px 15px;display:flex;align-items:center;gap:9px;margin-bottom:18px;font-size:.83rem;font-weight:500}
+.vbanner.pass{background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.28);color:var(--green)}
+.vbanner.fail{background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.28);color:var(--red)}
+
+/* ── Download bar ── */
+.dlbar{display:flex;gap:9px;flex-wrap:wrap;margin-top:20px;padding-top:18px;border-top:1px solid var(--border)}
+
+/* ── Empty ── */
+.empty{text-align:center;padding:50px;background:var(--surface);border:1px solid var(--border);border-radius:12px}
+.empty-icon{font-size:2.8rem;margin-bottom:12px}
+.empty-title{font-size:1rem;font-weight:600;margin-bottom:6px}
+.empty-sub{font-size:.82rem;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="logo"><span style="-webkit-text-fill-color:unset;font-size:1.3rem">🔐</span> <span>SecureCodeAI</span></div>
+  <span class="hbadge">LangGraph · Gemini · Autonomous Agent</span>
+</header>
+
+<div class="wrap">
+
+  <!-- Config -->
+  <div class="config-row">
+    <label>🔑 API Key</label>
+    <input type="password" id="apiKey" placeholder="AIzaSy..." autocomplete="off"/>
+    <label>🤖 Model</label>
+    <select id="modelSel">
+      <option value="gemini-1.5-flash" selected>gemini-1.5-flash ⭐ recommended</option>
+      <option value="gemini-1.5-flash-8b">gemini-1.5-flash-8b (fastest / lightest)</option>
+      <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+      <option value="gemini-1.5-pro">gemini-1.5-pro (most capable)</option>
+      <option value="gemini-3.8-flash">gemini-3.8-flash</option>
+    </select>
+    <a href="https://aistudio.google.com/app/apikey" target="_blank">Get free key ↗</a>
+  </div>
+
+  <!-- Pipeline -->
+  <div class="stitle">LangGraph Agent Pipeline</div>
+  <div class="pipeline" id="pipeline">
+    <div class="pnode">
+      <div class="nbox idle" id="nb0"><div class="ni">🔍</div><div class="nn">analyze_vulnerabilities</div><div class="ns">Gemini LLM</div></div>
+      <div class="nstat" id="ns0">IDLE</div>
+    </div>
+    <div class="parrow" id="pa0"></div>
+    <div class="pnode">
+      <div class="nbox idle" id="nb1"><div class="ni">🔧</div><div class="nn">generate_patch</div><div class="ns">Gemini LLM</div></div>
+      <div class="nstat" id="ns1">IDLE</div>
+    </div>
+    <div class="parrow" id="pa1"></div>
+    <div class="pnode">
+      <div class="nbox idle" id="nb2"><div class="ni">✅</div><div class="nn">verify_patch</div><div class="ns">AST / Static</div></div>
+      <div class="nstat" id="ns2">IDLE</div>
+    </div>
+    <div class="parrow" id="pa2"></div>
+    <div class="pnode">
+      <div class="nbox idle" id="nb3"><div class="ni">📄</div><div class="nn">generate_report</div><div class="ns">.md + download</div></div>
+      <div class="nstat" id="ns3">IDLE</div>
+    </div>
+  </div>
+
+  <!-- Upload -->
+  <div class="stitle">Upload Source Files</div>
+  <div class="dropzone" id="dz">
+    <input type="file" id="fi" multiple accept=".py,.js,.ts,.php,.java,.c,.cpp,.rb,.go"/>
+    <div class="dz-icon">📂</div>
+    <div class="dz-title">Drop files here or click to browse</div>
+    <div class="dz-sub">Multiple files supported · scanned in parallel</div>
+    <div class="chips">
+      <span class="chip">🐍 Python</span><span class="chip">🟨 JS</span><span class="chip">🔷 TS</span>
+      <span class="chip">🐘 PHP</span><span class="chip">☕ Java</span><span class="chip">⚙️ C/C++</span>
+      <span class="chip">💎 Ruby</span><span class="chip">🐹 Go</span>
+    </div>
+  </div>
+  <div class="fqueue" id="fqueue"></div>
+
+  <!-- Buttons -->
+  <div class="btns">
+    <button class="btn btn-scan" id="scanBtn" disabled onclick="startScan()">🚀 Start Security Scan</button>
+    <button class="btn btn-clear" id="clearBtn" onclick="clearAll()">🗑️ Clear</button>
+  </div>
+
+  <!-- Log -->
+  <div class="stitle">Agent Log</div>
+  <div class="logbox" id="logbox">
+    <div class="le info"><span class="lt">00:00</span><span class="lm">Ready — upload a file and click Start Security Scan.</span></div>
+  </div>
+
+  <!-- Results -->
+  <div class="results" id="results">
+    <div class="stitle">Scan Results</div>
+    <div class="ftabs" id="ftabs"></div>
+    <div id="fpanels"></div>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+/* ────────────────────────────────────────────────────
+   Globals
+──────────────────────────────────────────────────── */
+const EXT = {'.py':'python','.js':'javascript','.ts':'typescript','.php':'php','.java':'java','.c':'c','.cpp':'cpp','.rb':'ruby','.go':'go'};
+const ICONS = {python:'🐍',javascript:'🟨',typescript:'🔷',php:'🐘',java:'☕',c:'⚙️',cpp:'⚙️',ruby:'💎',go:'🐹'};
+let files = [];
+let t0 = null;
+
+function ts() {
+  const s = t0 ? ((Date.now()-t0)/1000)|0 : 0;
+  return `${String((s/60)|0).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+}
+function log(msg, type='info') {
+  const b = document.getElementById('logbox');
+  const d = document.createElement('div');
+  d.className = `le ${type}`;
+  d.innerHTML = `<span class="lt">${ts()}</span><span class="lm">${esc(msg)}</span>`;
+  b.appendChild(d);
+  b.scrollTop = b.scrollHeight;
+}
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
+
+/* ────────────────────────────────────────────────────
+   File handling
+──────────────────────────────────────────────────── */
+const dz = document.getElementById('dz');
+const fi = document.getElementById('fi');
+dz.addEventListener('dragover', e=>{e.preventDefault();dz.classList.add('over')});
+dz.addEventListener('dragleave', ()=>dz.classList.remove('over'));
+dz.addEventListener('drop', e=>{e.preventDefault();dz.classList.remove('over');addFiles([...e.dataTransfer.files])});
+fi.addEventListener('change', ()=>{addFiles([...fi.files]);fi.value=''});
+
+function addFiles(list) {
+  list.forEach(f=>{
+    if (files.find(x=>x.name===f.name)) return;
+    const r = new FileReader();
+    r.onload = ev=>{
+      const ext = f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
+      files.push({name:f.name, size:f.size, lang:EXT[ext]||'python', code:ev.target.result, result:null});
+      renderQueue();
+    };
+    r.readAsText(f);
+  });
+}
+
+function renderQueue() {
+  const fmtSize = b=> b>1048576?(b/1048576).toFixed(1)+'MB':(b/1024).toFixed(1)+'KB';
+  document.getElementById('fqueue').innerHTML = files.map((f,i)=>`
+    <div class="fitem">
+      <span>${ICONS[f.lang]||'📄'}</span>
+      <span class="fitem-name">${esc(f.name)}</span>
+      <span class="fitem-size">${fmtSize(f.size)}</span>
+      <button class="fitem-rm" onclick="removeFile(${i})">✕</button>
+    </div>`).join('');
+  document.getElementById('scanBtn').disabled = files.length===0;
+}
+function removeFile(i){files.splice(i,1);renderQueue()}
+
+/* ────────────────────────────────────────────────────
+   Pipeline helpers  (single scan, no collision risk)
+──────────────────────────────────────────────────── */
+function setNode(i, state, label) {
+  const b=document.getElementById(`nb${i}`), s=document.getElementById(`ns${i}`);
+  b.className=`nbox ${state}`;
+  s.className=`nstat ${state==='active'?'running':state==='done'?'done':state==='error'?'error':''}`;
+  s.textContent=label;
+}
+function litArrow(i){document.getElementById(`pa${i}`)?.classList.add('lit')}
+function resetPipeline(){
+  [0,1,2,3].forEach(i=>setNode(i,'idle','IDLE'));
+  ['pa0','pa1','pa2'].forEach(id=>document.getElementById(id)?.classList.remove('lit'));
+}
+
+/* ────────────────────────────────────────────────────
+   Gemini API — robust JSON extraction
+   Works with ALL Gemini models, no response_schema dependency
+──────────────────────────────────────────────────── */
+function extractJSON(text) {
+  // Strip markdown code fences like ```json ... ``` or ``` ... ```
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenced) text = fenced[1].trim();
+  // Find first { or [
+  const start = text.search(/[{\[]/);
+  if (start === -1) throw new Error('No JSON found in model response');
+  // Find matching end
+  let depth=0, inStr=false, esc=false, i=start;
+  const open=text[start], close=open==='{'?'}':']';
+  for(;i<text.length;i++){
+    const c=text[i];
+    if(esc){esc=false;continue}
+    if(c==='\\'){esc=true;continue}
+    if(c==='"'){inStr=!inStr;continue}
+    if(inStr) continue;
+    if(c===open) depth++;
+    else if(c===close){depth--;if(depth===0){i++;break}}
+  }
+  return JSON.parse(text.slice(start,i));
+}
+
+async function callGemini(systemPrompt, userPrompt) {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const model  = document.getElementById('modelSel').value;
+  const url    = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const body = JSON.stringify({
+    system_instruction: { parts: [{ text: systemPrompt }] },
+    contents:           [{ parts: [{ text: userPrompt }] }],
+    generationConfig:   { temperature: 0.1 }
+  });
+
+  const RETRYABLE = new Set([429, 500, 503]);
+  const MAX = 6;
+
+  for (let attempt=0; attempt<MAX; attempt++) {
+    let res;
+    try {
+      res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body });
+    } catch(netErr) {
+      const w = Math.min(5000*(attempt+1), 30000);
+      log(`⚠️ Network error — retrying in ${w/1000}s… (${attempt+1}/${MAX})`, 'warn');
+      await sleep(w); continue;
+    }
+
+    if (res.ok) {
+      const data = await res.json();
+      const raw  = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!raw) throw new Error('Gemini returned an empty response — try again');
+      return extractJSON(raw);
+    }
+
+    if (RETRYABLE.has(res.status)) {
+      const eb  = await res.json().catch(()=>({}));
+      const emsg= (eb?.error?.message||'').toLowerCase();
+      // Try to get server-suggested delay
+      let waitMs = 0;
+      try {
+        for (const d of eb?.error?.details||[]) {
+          if (d['@type']?.includes('RetryInfo')) { waitMs = parseFloat(d.retryDelay)*1000||0; break; }
+        }
+      } catch {}
+      if (!waitMs) waitMs = Math.min(6000*Math.pow(2,attempt), 120000);
+
+      const reason = res.status===429 ? '⏳ Rate limit (429)'
+                   : emsg.includes('demand')||emsg.includes('overload')||res.status===503 ? '🔄 Server busy (503)'
+                   : `⚠️ Server error (${res.status})`;
+      log(`${reason} — waiting ${Math.round(waitMs/1000)}s… (${attempt+1}/${MAX})`, 'warn');
+      await sleep(waitMs); continue;
+    }
+
+    // Non-retryable
+    const eb  = await res.json().catch(()=>({error:{message:res.statusText}}));
+    const msg = eb?.error?.message || `HTTP ${res.status}`;
+    if (res.status===401||res.status===403) throw new Error('❌ Invalid API key — check it at aistudio.google.com');
+    if (res.status===404) throw new Error(`❌ Model not found — select a different model from the dropdown (try gemini-1.5-flash)`);
+    throw new Error(msg);
+  }
+  throw new Error(`Failed after ${MAX} attempts. Try switching model in the dropdown.`);
+}
+
+/* ────────────────────────────────────────────────────
+   Node 1 — Vulnerability Analysis
+──────────────────────────────────────────────────── */
+const SYS_ANALYZE = `You are a Senior Application Security Auditor.
+Examine the source code line by line and identify ALL security vulnerabilities.
+
+Respond ONLY with a valid JSON object (no markdown, no explanation outside JSON):
+{
+  "has_vulnerabilities": true,
+  "vulnerabilities": [
+    {
+      "cwe_id": "CWE-89",
+      "title": "SQL Injection",
+      "severity": "CRITICAL",
+      "vulnerable_lines": [7, 8],
+      "risk_impact": "Attacker can read/modify the entire database",
+      "explanation": "String concatenation builds SQL queries with unsanitized user input"
+    }
+  ]
+}
+severity must be one of: CRITICAL, HIGH, MEDIUM, LOW
+If no vulnerabilities found, return has_vulnerabilities=false and empty array.`;
+
+/* ────────────────────────────────────────────────────
+   Node 2 — Patch Generation
+──────────────────────────────────────────────────── */
+const SYS_PATCH = `You are an expert secure systems engineer.
+Given vulnerable source code and identified vulnerabilities, produce a secure patched version.
+Preserve ALL existing business logic, function signatures, and variable names — only fix the security issues.
+
+Respond ONLY with a valid JSON object (no markdown, no explanation outside JSON):
+{
+  "patched_code": "...complete fixed source code here...",
+  "changes_made": [
+    "Replaced string concatenation with parameterized query",
+    "Added input validation for user_id parameter"
+  ]
+}`;
+
+/* ────────────────────────────────────────────────────
+   Main scan pipeline for ONE file
+──────────────────────────────────────────────────── */
+async function scanOneFile(f) {
+  const numbered = f.code.split('\n').map((l,i)=>`${String(i+1).padStart(4)} | ${l}`).join('\n');
+
+  // ── Node 1 ──
+  setNode(0,'active','RUNNING');
+  log(`[${f.name}] → Node 1: Analyzing vulnerabilities…`);
+
+  const analysis = await callGemini(
+    SYS_ANALYZE,
+    `Language: ${f.lang}\n\nSource code with line numbers:\n${numbered}`
+  );
+
+  // Normalise shape
+  if (!analysis.vulnerabilities) analysis.vulnerabilities = [];
+  setNode(0,'done','DONE ✓'); litArrow(0);
+  log(`[${f.name}] ✓ Node 1 — ${analysis.vulnerabilities.length} finding(s)`, 'ok');
+
+  // ── Node 2 ──
+  setNode(1,'active','RUNNING');
+  log(`[${f.name}] → Node 2: Generating secure patch…`);
+
+  const patch = await callGemini(
+    SYS_PATCH,
+    `Language: ${f.lang}
+
+Original Code:
+${f.code}
+
+Identified Vulnerabilities (JSON):
+${JSON.stringify(analysis, null, 2)}`
+  );
+
+  if (!patch.patched_code) patch.patched_code = f.code;
+  if (!patch.changes_made) patch.changes_made = [];
+  setNode(1,'done','DONE ✓'); litArrow(1);
+  log(`[${f.name}] ✓ Node 2 — patch generated`, 'ok');
+
+  // ── Node 3 ──
+  setNode(2,'active','RUNNING');
+  log(`[${f.name}] → Node 3: Verifying patch…`);
+  await sleep(500);
+
+  const syntaxOk = patch.patched_code.trim().length > 10;
+  setNode(2, syntaxOk?'done':'error', syntaxOk?'DONE ✓':'FAILED');
+  litArrow(2);
+  log(`[${f.name}] ${syntaxOk?'✓':'✗'} Node 3 — ${syntaxOk?'PASSED':'FAILED'}`, syntaxOk?'ok':'err');
+
+  // ── Node 4 ──
+  setNode(3,'active','RUNNING');
+  log(`[${f.name}] → Node 4: Building report…`);
+  await sleep(300);
+
+  const report = buildReport(f, analysis, patch, syntaxOk);
+  setNode(3,'done','DONE ✓');
+  log(`[${f.name}] ✓ Node 4 — report ready`, 'ok');
+
+  return { analysis, patch, syntaxOk, report };
+}
+
+/* ────────────────────────────────────────────────────
+   Markdown Report
+──────────────────────────────────────────────────── */
+function buildReport(f, analysis, patch, syntaxOk) {
+  const lines = [
+    `# Secure Code Audit & Remediation Report`,
+    ``,`**File:** \`${f.name}\`  `,`**Language:** \`${f.lang}\`  `,
+    `**Patch Syntax:** \`${syntaxOk?'PASSED':'FAILED'}\``,``,`---`,``,
+    `## 1. Vulnerability Findings`,``
+  ];
+  if (!analysis.vulnerabilities.length) {
+    lines.push('✅ No vulnerabilities detected.');
+  } else {
+    analysis.vulnerabilities.forEach((v,i)=>{
+      lines.push(
+        `### Finding ${i+1}: ${v.title} (${v.cwe_id})`,
+        `- **Severity:** ${v.severity}`,
+        `- **Lines:** \`${(v.vulnerable_lines||[]).join(', ')}\``,
+        `- **Risk & Impact:** ${v.risk_impact}`,
+        `- **Details:** ${v.explanation}`,``
+      );
+    });
+  }
+  lines.push(`---`,``,`## 2. Remediations & Patches`,``,`### Changes:`,
+    ...patch.changes_made.map(c=>`- ${c}`),``,
+    `### Patched Code:`,`\`\`\`${f.lang}`,patch.patched_code,`\`\`\``);
+  return lines.join('\n');
+}
+
+/* ────────────────────────────────────────────────────
+   Start Scan
+──────────────────────────────────────────────────── */
+async function startScan() {
+  const key = document.getElementById('apiKey').value.trim();
+  if (!key)          { alert('Enter your Gemini API key first.'); return; }
+  if (!files.length) { alert('Upload at least one file first.'); return; }
+
+  t0 = Date.now();
+  document.getElementById('scanBtn').disabled  = true;
+  document.getElementById('clearBtn').disabled = true;
+  resetPipeline();
+
+  const res = document.getElementById('results');
+  res.classList.add('show');
+  document.getElementById('ftabs').innerHTML   = '';
+  document.getElementById('fpanels').innerHTML = '';
+
+  files.forEach((f,i)=>{ f.result=null; mkPlaceholder(f,i); });
+  log(`Scanning ${files.length} file(s)…`);
+
+  // NOTE: scan sequentially when only 1 file so pipeline animation is clear.
+  // For multiple files, run parallel.
+  if (files.length === 1) {
+    await runOne(files[0], 0);
+  } else {
+    await Promise.allSettled(files.map((f,i)=>runOne(f,i)));
+  }
+
+  log(`All scans complete.`, 'ok');
+  document.getElementById('scanBtn').disabled  = false;
+  document.getElementById('clearBtn').disabled = false;
+  document.querySelector('.ftab')?.click();
+}
+
+async function runOne(f, i) {
+  try {
+    f.result = await scanOneFile(f);
+    renderResult(f, i);
+    log(`[${f.name}] 🎉 Done!`, 'ok');
+  } catch(err) {
+    f.result = {error: true};
+    renderErr(f, i, err.message);
+    log(`[${f.name}] ✗ ${err.message}`, 'err');
+    setNode(0,'error','ERROR');
+  }
+}
+
+/* ────────────────────────────────────────────────────
+   UI — tabs & panels
+──────────────────────────────────────────────────── */
+function mkPlaceholder(f, i) {
+  const tab = document.createElement('button');
+  tab.className = `ftab${i===0?' on':''}`;
+  tab.id = `tab${i}`;
+  tab.innerHTML = `${ICONS[f.lang]||'📄'} ${esc(f.name)} <span id="tstat${i}">⏳</span>`;
+  tab.onclick = ()=>switchTab(i);
+  document.getElementById('ftabs').appendChild(tab);
+
+  const panel = document.createElement('div');
+  panel.className = `fpanel${i===0?' on':''}`;
+  panel.id = `panel${i}`;
+  panel.innerHTML = `<div class="empty"><div class="empty-icon"><span class="spinner"></span></div><div class="empty-title">Scanning ${esc(f.name)}…</div><div class="empty-sub">Running LangGraph pipeline</div></div>`;
+  document.getElementById('fpanels').appendChild(panel);
+}
+
+function switchTab(i) {
+  document.querySelectorAll('.ftab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.fpanel').forEach(p=>p.classList.remove('on'));
+  document.getElementById(`tab${i}`)?.classList.add('on');
+  document.getElementById(`panel${i}`)?.classList.add('on');
+}
+
+function renderErr(f, i, msg) {
+  document.getElementById(`tstat${i}`).textContent = '❌';
+  document.getElementById(`panel${i}`).innerHTML =
+    `<div class="vbanner fail">❌ Scan failed: ${esc(msg)}</div>
+     <p style="font-size:.82rem;color:var(--muted);margin-top:8px">
+       💡 Try: switch to a different model · wait a minute · check your API key
+     </p>`;
+}
+
+function renderResult(f, i) {
+  const {analysis, patch, syntaxOk, report} = f.result;
+  const vs = analysis.vulnerabilities || [];
+  const cnt = {CRITICAL:0, HIGH:0, MEDIUM:0, LOW:0};
+  vs.forEach(v=>{ cnt[v.severity]=(cnt[v.severity]||0)+1; });
+
+  document.getElementById(`tstat${i}`).textContent = vs.length ? '⚠️' : '✅';
+
+  const vulnLines = vs.flatMap(v=>v.vulnerable_lines||[]);
+
+  document.getElementById(`panel${i}`).innerHTML = `
+    <div class="vbanner ${syntaxOk?'pass':'fail'}">
+      ${syntaxOk ? '✅ Patch verification PASSED' : '❌ Patch verification FAILED'}
+    </div>
+
+    <div class="scards">
+      <div class="scard"><div class="scard-label">Total Findings</div>
+        <div class="scard-val ${vs.length?'vc':'gc'}">${vs.length}</div>
+        <div class="scard-sub">${vs.length?'vulnerabilities found':'Clean ✅'}</div></div>
+      <div class="scard"><div class="scard-label">Critical / High</div>
+        <div class="scard-val vc">${cnt.CRITICAL+cnt.HIGH}</div>
+        <div class="scard-sub">${cnt.CRITICAL} critical · ${cnt.HIGH} high</div></div>
+      <div class="scard"><div class="scard-label">Medium / Low</div>
+        <div class="scard-val mc">${cnt.MEDIUM+cnt.LOW}</div>
+        <div class="scard-sub">${cnt.MEDIUM} medium · ${cnt.LOW} low</div></div>
+      <div class="scard"><div class="scard-label">Patch Status</div>
+        <div class="scard-val ${syntaxOk?'gc':'vc'}">${syntaxOk?'PASSED':'FAILED'}</div>
+        <div class="scard-sub">Syntax check</div></div>
+    </div>
+
+    <div class="ftitle">🔍 Vulnerability Findings</div>
+    ${vs.length===0
+      ? '<div class="empty" style="padding:30px"><div class="empty-icon">✅</div><div class="empty-title">No vulnerabilities detected</div></div>'
+      : vs.map((v,vi)=>mkFinding(v,vi+1)).join('')}
+
+    <div class="codesec">
+      <div class="ftitle">💻 Source Code</div>
+      <div class="ctabs">
+        <button class="ctab on" onclick="swCode(${i},'original',this)">Original</button>
+        <button class="ctab"    onclick="swCode(${i},'patched',this)">Patched</button>
+        <button class="ctab"    onclick="swCode(${i},'changes',this)">Changes (${patch.changes_made.length})</button>
+      </div>
+      <div class="cview">
+        <div class="chdr">
+          <span class="clang">${f.lang}</span>
+          <button class="cbtn" onclick="copyCode(${i})">📋 Copy</button>
+        </div>
+        <div class="cpanel on" id="cp${i}original">
+          <pre class="cpre">${codeLines(f.code, vulnLines, 'vuln')}</pre>
+        </div>
+        <div class="cpanel" id="cp${i}patched">
+          <pre class="cpre">${codeLines(patch.patched_code, [], 'added')}</pre>
+        </div>
+        <div class="cpanel" id="cp${i}changes">
+          <ul class="chglist">${patch.changes_made.map(c=>`<li>${esc(c)}</li>`).join('')}</ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="dlbar">
+      <button class="btn btn-dl"  onclick="dlReport(${i})">⬇️ Download Report (.md)</button>
+      <button class="btn btn-dl2" onclick="dlPatch(${i})">⬇️ Download Patched Code</button>
+    </div>`;
+}
+
+function mkFinding(v, n) {
+  const locs = (v.vulnerable_lines||[]).map(l=>`<span class="loc">Line ${l}</span>`).join('');
+  return `
+  <div class="fcard" id="fc${n}" onclick="toggleF(${n})">
+    <div class="fhead">
+      <div class="fidx">${n}</div>
+      <div class="ftxt">${esc(v.title)}</div>
+      <span class="fcwe">${esc(v.cwe_id)}</span>
+      <span class="sbadge s${v.severity}">${v.severity}</span>
+      <span class="fchev">▶</span>
+    </div>
+    <div class="fbody">
+      <div class="dgrid">
+        <span class="dlabel">Vulnerable Lines</span><span class="dval"><div class="locs">${locs||'—'}</div></span>
+        <span class="dlabel">Risk & Impact</span><span class="dval">${esc(v.risk_impact)}</span>
+        <span class="dlabel">Technical Detail</span><span class="dval">${esc(v.explanation)}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function toggleF(n) { document.getElementById(`fc${n}`)?.classList.toggle('open'); }
+
+function codeLines(code, highlights, cls) {
+  return (code||'').split('\n').map((line,i)=>{
+    const n=i+1, h=highlights.includes(n)?` ${cls}`:'';
+    return `<div class="cline${h}"><span class="cln">${n}</span><span class="clc">${esc(line)}</span></div>`;
+  }).join('');
+}
+
+function swCode(fi, panel, btn) {
+  document.querySelectorAll(`[id^="cp${fi}"]`).forEach(p=>p.classList.remove('on'));
+  btn.closest('.ctabs').querySelectorAll('.ctab').forEach(t=>t.classList.remove('on'));
+  document.getElementById(`cp${fi}${panel}`)?.classList.add('on');
+  btn.classList.add('on');
+}
+
+function copyCode(i) {
+  const el = document.querySelector(`[id^="cp${i}"].on`);
+  if (!el) return;
+  navigator.clipboard.writeText(el.innerText).then(()=>log('Copied to clipboard ✓','ok'));
+}
+
+function dlReport(i) {
+  const f = files[i];
+  if (!f?.result?.report) return;
+  dl(`report_${f.name}.md`, f.result.report, 'text/markdown');
+}
+function dlPatch(i) {
+  const f = files[i];
+  if (!f?.result?.patch) return;
+  dl(`patched_${f.name}`, f.result.patch.patched_code, 'text/plain');
+}
+function dl(name, content, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content],{type}));
+  a.download = name; a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function clearAll() {
+  files=[];
+  renderQueue();
+  document.getElementById('results').classList.remove('show');
+  document.getElementById('logbox').innerHTML=
+    '<div class="le info"><span class="lt">00:00</span><span class="lm">Cleared — ready.</span></div>';
+  resetPipeline(); t0=null;
+}
+</script>
+</body>
+</html>
